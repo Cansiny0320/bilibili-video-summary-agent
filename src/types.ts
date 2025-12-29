@@ -14,6 +14,8 @@ export interface VideoInfo {
     pic: string; // 封面图
     duration: number;
     pubdate: number;
+    totalPages: number; // 总分P数
+    currentPage: number; // 当前分P
 }
 
 export interface BilibiliSubtitleListResponse {
