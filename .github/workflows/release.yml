@@ -23,7 +23,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Update npm to latest
         run: npm install -g npm@latest
@@ -70,7 +69,6 @@ jobs:
         run: npm publish
         env:
           NPM_CONFIG_PROVENANCE: true
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Extract changelog for this version
         if: steps.new-version.outputs.version != 'none' && steps.new-version.outputs.version != steps.npm-version.outputs.version
