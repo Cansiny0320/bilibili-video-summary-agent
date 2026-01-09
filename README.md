@@ -1,5 +1,7 @@
 # Bilibili Video Summary Agent
 
+[![npm](https://img.shields.io/npm/v/bili-summary.svg)](https://www.npmjs.com/package/bili-summary)
+
 这是一个基于 Node.js 和 TypeScript 开发的命令行工具 (CLI)，利用 AI (OpenAI API) 自动总结 Bilibili 视频内容。它能够抓取视频字幕，生成包含关键时间点跳转的摘要，帮助用户快速获取视频核心信息。
 
 ## ✨ 功能特点
