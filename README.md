@@ -23,6 +23,7 @@
 
 - Node.js (建议 v16+)
 - OpenAI API Key (或兼容 OpenAI 格式的其他 LLM API Key)
+- ffmpeg (使用音频转录/切分时需要)
 
 ### 安装
 
@@ -74,8 +75,14 @@ cp .env.example .env
 ```env
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_BASE_URL=https://api.openai.com/v1  # 可选，支持第三方中转地址
+OPENAI_CHAT_MODEL=gpt-4o-mini              # 可选，摘要模型
+OPENAI_AUDIO_MODEL=doubao-seed-1-6-251015  # 可选，音频转录模型
 BILIBILI_SESSDATA=xxxxxxxx  # 可选，B站 Cookie 中的 SESSDATA，用于获取更完整的字幕或高画质音频
 BILIBILI_JCT=xxxxxxxx       # 可选，B站 Cookie 中的 bili_jct (CSRF Token)，仅在使用 --comment 功能时需要
+VOLC_APP_KEY=xxxxxxxx       # 可选，火山引擎 App Key（启用火山语音识别）
+VOLC_ACCESS_KEY=xxxxxxxx    # 可选，火山引擎 Access Key
+VOLC_CLUSTER=volc_auc_common # 可选，火山引擎资源 ID
+VOLC_API_URL=xxxxxxxx       # 可选，自定义火山接口地址
 ```
 
 ## 📖 使用说明
@@ -97,6 +104,15 @@ BILIBILI_JCT=xxxxxxxx       # 可选，B站 Cookie 中的 bili_jct (CSRF Token)�
 
 # 开启无字幕视频的音频转录
 ./dist/index.js BV1uT4y1P7CX --transcribe
+
+# 强制使用音频转录（忽略字幕）
+./dist/index.js BV1uT4y1P7CX --force-transcribe
+
+# 发布评论到视频（需要 BILIBILI_JCT + SESSDATA）
+./dist/index.js BV1uT4y1P7CX --comment
+
+# 指定分P（示例：P2）
+./dist/index.js https://www.bilibili.com/video/BV1uT4y1P7CX?p=2
 ```
 
 ### 命令参数
@@ -113,9 +129,52 @@ Options:
   -b, --base-url <url>  OpenAI Base URL
   -m, --model <model>   OpenAI Model (default: gpt-4o-mini)
   -o, --output <file>   Save summary to file
+  --comment             Post summary as a comment on the video
   --transcribe          Enable audio transcription if subtitles are missing
   --force-transcribe    Force audio transcription even if subtitles exist
   -h, --help            display help for command
+```
+
+## 📦 环境变量说明
+
+```text
+OPENAI_API_KEY        OpenAI API Key（必需，除非使用其他兼容服务）
+OPENAI_BASE_URL       OpenAI Base URL（可选，默认 https://api.openai.com/v1）
+OPENAI_CHAT_MODEL     摘要模型（可选，默认 gpt-4o-mini）
+OPENAI_AUDIO_MODEL    音频转录模型（可选，默认 doubao-seed-1-6-251015）
+BILIBILI_SESSDATA     B站 Cookie，获取更完整字幕/音频（可选）
+BILIBILI_JCT          B站 CSRF Token，发评论必需（可选）
+VOLC_APP_KEY          火山 App Key（可选，启用火山转录）
+VOLC_ACCESS_KEY       火山 Access Key（可选）
+VOLC_CLUSTER          火山资源 ID（可选）
+VOLC_API_URL          火山接口地址（可选）
+```
+
+## ✅ 常见问题
+
+1. **提示没有字幕**
+   - 使用 `--transcribe` 或 `--force-transcribe` 开启音频转录。
+
+2. **音频转录报错或无法切分**
+   - 请确保本机已安装 `ffmpeg` 且在 PATH 中可用。
+
+3. **发布评论失败**
+   - 需要同时配置 `BILIBILI_JCT` 和 `BILIBILI_SESSDATA`。
+
+4. **火山识别失败**
+   - 确认 App Key/Access Key/Cluster 正确，并检查账号是否开通“一句话识别”或“Flash 识别”。
+
+## 🚢 发布流程
+
+```bash
+# 版本变更（示例：patch）
+npm version patch
+
+# 构建并发布
+npm publish --access public
+
+# 生成 GitHub Release
+gh release create vX.Y.Z -t "vX.Y.Z" -n "Release notes"
 ```
 
 ## 🛠️ 开发
