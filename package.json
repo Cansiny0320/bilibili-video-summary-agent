@@ -1,20 +1,43 @@
 {
-  "name": "bilibili-video-summary-agent",
+  "name": "bili-summary",
   "version": "1.0.0",
-  "description": "",
+  "description": "CLI tool to summarize Bilibili videos via subtitles or audio transcription using LLMs",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "bin": {
     "bili-summary": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsup",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
+    "prepublishOnly": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "bilibili",
+    "summary",
+    "cli",
+    "subtitle",
+    "transcription",
+    "openai"
+  ],
+  "author": "Cansiny0320",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cansiny0320/bilibili-video-summary-agent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Cansiny0320/bilibili-video-summary-agent/issues"
+  },
+  "homepage": "https://github.com/Cansiny0320/bilibili-video-summary-agent#readme",
   "devDependencies": {
     "@types/fluent-ffmpeg": "^2.1.28",
     "@types/node": "^25.0.3",

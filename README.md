@@ -20,10 +20,29 @@
 ### 前置要求
 
 - Node.js (建议 v16+)
-- pnpm
 - OpenAI API Key (或兼容 OpenAI 格式的其他 LLM API Key)
 
 ### 安装
+
+#### 方式一：通过 npm 安装 (推荐)
+
+```bash
+npm install -g bili-summary
+```
+
+安装后直接使用：
+
+```bash
+bili-summary BV1uT4y1P7CX
+```
+
+也可用 npx 直接运行：
+
+```bash
+npx bili-summary BV1uT4y1P7CX
+```
+
+#### 方式二：源码安装
 
 1. **克隆仓库**
    ```bash
@@ -98,6 +117,8 @@ Options:
 ```
 
 ## 🛠️ 开发
+
+开发需要安装 pnpm：
 
 ```bash
 # 运行 TypeScript 源码 (无需编译)

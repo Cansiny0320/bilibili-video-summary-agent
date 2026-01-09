@@ -21,35 +21,45 @@ export class AIService {
    * 如果文件过大，自动分割并分批识别
    */
   async transcribeAudio(audioPath: string): Promise<SubtitleItem[]> {
-    const stats = fs.statSync(audioPath)
-    const fileSizeInMB = stats.size / (1024 * 1024)
+    const useVolc = Boolean(process.env.VOLC_APP_KEY && process.env.VOLC_ACCESS_KEY)
+    const { path: workingPath, cleanup } = await this.prepareAudioForTranscription(
+      audioPath,
+      useVolc ? 'mp3' : null,
+    )
 
-    // OpenAI Whisper 限制 25MB，预留一点空间
-    if (fileSizeInMB < 24) {
-      return this.transcribeChunk(audioPath, 0)
+    try {
+      const stats = fs.statSync(workingPath)
+      const fileSizeInMB = stats.size / (1024 * 1024)
+
+      // OpenAI Whisper 限制 25MB，预留一点空间
+      if (fileSizeInMB < 24) {
+        return await this.transcribeChunk(workingPath, 0)
+      }
+
+      console.log(`Audio file too large (${fileSizeInMB.toFixed(2)}MB), splitting...`)
+      const chunks = await this.splitAudio(workingPath)
+
+      let allSubtitles: SubtitleItem[] = []
+      let timeOffset = 0
+
+      for (const chunk of chunks) {
+        console.log(`Transcribing chunk: ${chunk.path}...`)
+        const chunkSubtitles = await this.transcribeChunk(chunk.path, timeOffset)
+        allSubtitles = allSubtitles.concat(chunkSubtitles)
+
+        // 更新时间偏移量
+        timeOffset += chunk.duration
+
+        // 清理临时分片文件
+        try {
+          fs.unlinkSync(chunk.path)
+        } catch (e) {}
+      }
+
+      return allSubtitles
+    } finally {
+      cleanup()
     }
-
-    console.log(`Audio file too large (${fileSizeInMB.toFixed(2)}MB), splitting...`)
-    const chunks = await this.splitAudio(audioPath)
-
-    let allSubtitles: SubtitleItem[] = []
-    let timeOffset = 0
-
-    for (const chunk of chunks) {
-      console.log(`Transcribing chunk: ${chunk.path}...`)
-      const chunkSubtitles = await this.transcribeChunk(chunk.path, timeOffset)
-      allSubtitles = allSubtitles.concat(chunkSubtitles)
-
-      // 更新时间偏移量
-      timeOffset += chunk.duration
-
-      // 清理临时分片文件
-      try {
-        fs.unlinkSync(chunk.path)
-      } catch (e) {}
-    }
-
-    return allSubtitles
   }
 
   private async transcribeChunk(filePath: string, timeOffset: number): Promise<SubtitleItem[]> {
@@ -94,6 +104,7 @@ export class AIService {
 
   private async transcribeWithVolc(filePath: string, timeOffset: number): Promise<SubtitleItem[]> {
     try {
+      const format = path.extname(filePath).replace('.', '') || 'mp3'
       const fileData = fs.readFileSync(filePath)
       const audioBase64 = fileData.toString('base64')
       const appId = process.env.VOLC_APP_KEY
@@ -124,7 +135,7 @@ export class AIService {
             uid: 'bili_summary_agent',
           },
           audio: {
-            format: 'mp3',
+            format: format,
             rate: 16000,
             channel: 1,
             cuted: false,
@@ -327,6 +338,50 @@ export class AIService {
           .then(() => resolve(chunks))
           .catch(reject)
       })
+    })
+  }
+
+  private async prepareAudioForTranscription(
+    filePath: string,
+    forceFormat: 'mp3' | null,
+  ): Promise<{ path: string; cleanup: () => void }> {
+    const ext = path.extname(filePath).toLowerCase()
+    const allowedExts = ['.mp3', '.m4a', '.wav', '.mp4', '.mpeg', '.mpga', '.webm']
+    const needsConvert =
+      (forceFormat === 'mp3' && ext !== '.mp3') ||
+      (forceFormat === null && !allowedExts.includes(ext))
+
+    if (!needsConvert) {
+      return { path: filePath, cleanup: () => {} }
+    }
+
+    const baseName = path.basename(filePath, ext)
+    const dir = path.dirname(filePath)
+    const targetPath = path.join(dir, `${baseName}_transcribe.mp3`)
+
+    await this.convertAudioToMp3(filePath, targetPath)
+
+    return {
+      path: targetPath,
+      cleanup: () => {
+        try {
+          fs.unlinkSync(targetPath)
+        } catch (e) {}
+      },
+    }
+  }
+
+  private async convertAudioToMp3(inputPath: string, outputPath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      ffmpeg(inputPath)
+        .audioCodec('libmp3lame')
+        .audioChannels(1)
+        .audioFrequency(16000)
+        .format('mp3')
+        .output(outputPath)
+        .on('end', () => resolve())
+        .on('error', err => reject(err))
+        .run()
     })
   }
 
