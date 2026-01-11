@@ -1,16 +1,16 @@
+import type { SubtitleItem, VideoInfo } from './types'
+import * as fs from 'node:fs'
 import axios from 'axios'
-import * as fs from 'fs'
-import { VideoInfo, SubtitleItem } from './types'
 
-const USER_AGENT =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+const USER_AGENT
+  = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 export class BilibiliClient {
   private client = axios.create({
     headers: {
       'User-Agent': USER_AGENT,
-      Referer: 'https://www.bilibili.com',
-      Cookie: process.env.BILIBILI_SESSDATA ? `SESSDATA=${process.env.BILIBILI_SESSDATA}` : '',
+      'Referer': 'https://www.bilibili.com',
+      'Cookie': process.env.BILIBILI_SESSDATA ? `SESSDATA=${process.env.BILIBILI_SESSDATA}` : '',
     },
   })
 
@@ -57,16 +57,17 @@ export class BilibiliClient {
       return {
         bvid: videoData.bvid,
         aid: videoData.aid,
-        cid: cid,
-        title: title,
+        cid,
+        title,
         desc: videoData.desc,
         pic: videoData.pic,
-        duration: duration,
+        duration,
         pubdate: videoData.pubdate,
-        totalPages: totalPages,
-        currentPage: currentPage,
+        totalPages,
+        currentPage,
       }
-    } catch (error: any) {
+    }
+    catch (error: any) {
       throw new Error(`Error fetching video info: ${error.message}`)
     }
   }
@@ -91,15 +92,16 @@ export class BilibiliClient {
       if (match) {
         const state = JSON.parse(match[1])
         if (
-          state.videoData &&
-          state.videoData.subtitle &&
-          Array.isArray(state.videoData.subtitle.list)
+          state.videoData
+          && state.videoData.subtitle
+          && Array.isArray(state.videoData.subtitle.list)
         ) {
           return state.videoData.subtitle.list.map((s: any) => s.id_str || s.id.toString())
         }
       }
       return []
-    } catch (error) {
+    }
+    catch (error) {
       console.warn('Failed to extract subtitle IDs from HTML, skipping verification.', error)
       return []
     }
@@ -118,14 +120,14 @@ export class BilibiliClient {
       // }
 
       // 重试机制：最多重试 3 次
-      let maxRetries = 3
+      const maxRetries = 3
       let lastSubtitles: any[] = []
 
       for (let i = 0; i <= maxRetries; i++) {
         if (i > 0) {
           // console.log(`DEBUG: Retry attempt ${i}/${maxRetries}...`);
           // 简单的延迟
-          await new Promise((resolve) => setTimeout(resolve, 500))
+          await new Promise(resolve => setTimeout(resolve, 500))
         }
 
         // 构造更稳健的 URL: 包含 aid 和 时间戳以避免缓存问题
@@ -168,22 +170,26 @@ export class BilibiliClient {
           if (filtered.length > 0) {
             // console.log('DEBUG: API subtitles match HTML IDs and have valid URLs. Success.');
             return this.selectBestSubtitle(filtered)
-          } else {
+          }
+          else {
             // 有匹配 ID 但没有 URL，或者完全不匹配
             const hasIdMatch = subtitles.some((s: any) =>
               validIds.includes(s.id_str || s.id?.toString()),
             )
             if (hasIdMatch) {
               // console.warn(`DEBUG: API subtitles match HTML IDs but URL is empty (Attempt ${i + 1}). Retrying...`);
-            } else {
+            }
+            else {
               // console.warn(`DEBUG: API subtitles mismatch (Attempt ${i + 1}). Expected one of ${JSON.stringify(validIds)}, got ${JSON.stringify(subtitles.map((s: any) => s.id_str || s.id))}`);
             }
           }
-        } else {
+        }
+        else {
           // 没有权威 ID，但也要检查 URL 非空
           if (subtitles.some((s: any) => s.subtitle_url && s.subtitle_url.length > 0)) {
             return this.selectBestSubtitle(subtitles)
-          } else {
+          }
+          else {
             // console.warn(`DEBUG: No valid subtitle URLs in API response (Attempt ${i + 1}). Retrying...`);
           }
         }
@@ -191,7 +197,8 @@ export class BilibiliClient {
 
       // console.warn('DEBUG: Failed to get matching subtitles after retries. Fallback to last fetched data.');
       return this.selectBestSubtitle(lastSubtitles)
-    } catch (error: any) {
+    }
+    catch (error: any) {
       console.error(`Error fetching subtitles list: ${error.message}`)
       return []
     }
@@ -274,7 +281,8 @@ export class BilibiliClient {
         }))
       }
       return []
-    } catch (error: any) {
+    }
+    catch (error: any) {
       throw new Error(`Failed to download subtitle content: ${error.message}`)
     }
   }
@@ -303,7 +311,8 @@ export class BilibiliClient {
       }
 
       return null
-    } catch (error: any) {
+    }
+    catch (error: any) {
       console.error(`Error fetching audio url: ${error.message}`)
       return null
     }
@@ -325,7 +334,8 @@ export class BilibiliClient {
         writer.on('finish', resolve)
         writer.on('error', reject)
       })
-    } catch (error: any) {
+    }
+    catch (error: any) {
       throw new Error(`Failed to download audio: ${error.message}`)
     }
   }
@@ -359,11 +369,13 @@ export class BilibiliClient {
       if (data.code === 0) {
         console.log('Comment posted successfully!')
         return true
-      } else {
+      }
+      else {
         console.error(`Failed to post comment: ${data.message} (Code: ${data.code})`)
         return false
       }
-    } catch (error: any) {
+    }
+    catch (error: any) {
       console.error(`Error posting comment: ${error.message}`)
       return false
     }
@@ -372,7 +384,7 @@ export class BilibiliClient {
   /**
    * 工具函数: 解析输入，返回 BV 号和分P号
    */
-  static parseInput(input: string): { bvid: string | null; page: number } {
+  static parseInput(input: string): { bvid: string | null, page: number } {
     const result = { bvid: null as string | null, page: 1 }
 
     // 1. 尝试提取 BV 号
@@ -386,7 +398,7 @@ export class BilibiliClient {
       // 简单解析 URL 参数
       const pMatch = input.match(/[?&]p=(\d+)/)
       if (pMatch) {
-        result.page = parseInt(pMatch[1], 10)
+        result.page = Number.parseInt(pMatch[1], 10)
       }
     }
 

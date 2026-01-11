@@ -1,17 +1,64 @@
-import OpenAI from 'openai'
+import type { SubtitleItem, VideoInfo } from './types'
+import { randomUUID } from 'node:crypto'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import axios from 'axios'
-import * as fs from 'fs'
-import * as path from 'path'
 
 import ffmpeg from 'fluent-ffmpeg'
-import { VideoInfo, SubtitleItem } from './types'
+import OpenAI from 'openai'
+
+type WhisperSegment = {
+  start: number
+  end: number
+  text: string
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== 'object' || value === null) return null
+  return value as Record<string, unknown>
+}
+
+function asNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+export function parseWhisperDurationSeconds(response: unknown): number | undefined {
+  const record = asRecord(response)
+  if (!record) return undefined
+  const duration = asNumber(record.duration)
+  return duration ?? undefined
+}
+
+export function parseWhisperSegments(response: unknown): WhisperSegment[] | undefined {
+  const record = asRecord(response)
+  if (!record) return undefined
+
+  const raw = record.segments
+  if (!Array.isArray(raw)) return undefined
+
+  const result: WhisperSegment[] = []
+  for (const item of raw) {
+    const seg = asRecord(item)
+    if (!seg) continue
+
+    const start = asNumber(seg.start)
+    const end = asNumber(seg.end)
+    const text = typeof seg.text === 'string' ? seg.text : null
+
+    if (start === null || end === null || text === null) continue
+
+    result.push({ start, end, text })
+  }
+
+  return result.length > 0 ? result : undefined
+}
 
 export class AIService {
   private openai: OpenAI
 
   constructor(apiKey: string, baseURL?: string) {
     this.openai = new OpenAI({
-      apiKey: apiKey,
+      apiKey,
       baseURL: baseURL || 'https://api.openai.com/v1',
     })
   }
@@ -53,11 +100,13 @@ export class AIService {
         // 清理临时分片文件
         try {
           fs.unlinkSync(chunk.path)
-        } catch {}
+        }
+        catch {}
       }
 
       return allSubtitles
-    } finally {
+    }
+    finally {
       cleanup()
     }
   }
@@ -77,27 +126,27 @@ export class AIService {
         timestamp_granularities: ['segment'], // 获取分段级时间戳
       })
 
-      // 处理 verbose_json 格式的返回
-      // 修正类型定义：OpenAI SDK 的类型比较复杂，这里做简单的断言
-      const segments = (response as any).segments
+      const segments = parseWhisperSegments(response)
 
       if (!segments) {
         // 如果没有 segments，可能是 text 格式或者只有 text 字段
+        const duration = parseWhisperDurationSeconds(response) ?? 0
         return [
           {
             from: timeOffset,
-            to: timeOffset + (response as any).duration || 0,
+            to: timeOffset + duration,
             content: response.text,
           },
         ]
       }
 
-      return segments.map((seg: any) => ({
+      return segments.map(seg => ({
         from: seg.start + timeOffset,
         to: seg.end + timeOffset,
         content: seg.text.trim(),
       }))
-    } catch (error: any) {
+    }
+    catch (error: any) {
       throw new Error(`Whisper transcription failed: ${error.message}`)
     }
   }
@@ -120,7 +169,7 @@ export class AIService {
         url = process.env.VOLC_API_URL
       }
 
-      const reqId = require('crypto').randomUUID()
+      const reqId = randomUUID()
 
       // 使用 JSON 格式
       const response = await axios.post(
@@ -128,14 +177,14 @@ export class AIService {
         {
           app: {
             appid: appId,
-            token: token,
-            cluster: cluster,
+            token,
+            cluster,
           },
           user: {
             uid: 'bili_summary_agent',
           },
           audio: {
-            format: format,
+            format,
             rate: 16000,
             channel: 1,
             cuted: false,
@@ -167,10 +216,10 @@ export class AIService {
       const message = data.message || data.resp?.message || 'Unknown'
 
       // 只要有识别结果 result，就视为成功
-      const hasResult =
-        (Array.isArray(data.result) && data.result.length > 0) ||
-        (data.result && !Array.isArray(data.result) && data.result.text) ||
-        (data.resp && data.resp.text)
+      const hasResult
+        = (Array.isArray(data.result) && data.result.length > 0)
+          || (data.result && !Array.isArray(data.result) && data.result.text)
+          || (data.resp && data.resp.text)
 
       // Volc API 成功时 code 通常是 1000，或者直接返回了结果
       if (!hasResult && code !== 1000 && message !== 'Success') {
@@ -183,9 +232,11 @@ export class AIService {
       let text = ''
       if (Array.isArray(data.result) && data.result[0]) {
         text = data.result[0].text
-      } else if (data.result && !Array.isArray(data.result) && data.result.text) {
+      }
+      else if (data.result && !Array.isArray(data.result) && data.result.text) {
         text = data.result.text
-      } else if (data.resp && data.resp.text) {
+      }
+      else if (data.resp && data.resp.text) {
         text = data.resp.text
       }
 
@@ -196,7 +247,8 @@ export class AIService {
           content: text,
         },
       ]
-    } catch (error: any) {
+    }
+    catch (error: any) {
       // 检查 error.response.data 中的错误信息
       const errorMsg = error.response?.data?.message || error.message
 
@@ -243,7 +295,7 @@ export class AIService {
       {
         app: {
           appid: appId,
-          token: token,
+          token,
           // cluster: "volc_auc_common" // Fallback: Do NOT send cluster
         },
         user: {
@@ -257,7 +309,7 @@ export class AIService {
           data: audioBase64,
         },
         request: {
-          reqid: require('crypto').randomUUID(),
+          reqid: randomUUID(),
           workflow: 'audio_in,resample,partition,vad,fe,decode,itn,nlu_punctuate',
           sequence: 1,
         },
@@ -291,14 +343,15 @@ export class AIService {
 
   /**
    * 使用 ffmpeg 切割音频
+   * @param filePath 音频文件路径
    * @param segmentDuration 切片时长(秒)，默认 600
    */
   private async splitAudio(
     filePath: string,
     segmentDuration: number = 600,
-  ): Promise<{ path: string; duration: number }[]> {
+  ): Promise<{ path: string, duration: number }[]> {
     return new Promise((resolve, reject) => {
-      const chunks: { path: string; duration: number }[] = []
+      const chunks: { path: string, duration: number }[] = []
 
       // 获取音频时长
       ffmpeg.ffprobe(filePath, (err, metadata) => {
@@ -328,7 +381,7 @@ export class AIService {
               .setDuration(segmentDuration)
               .output(outputName)
               .on('end', () => res())
-              .on('error', (err) => rej(err))
+              .on('error', err => rej(err))
               .run()
           })
           promises.push(p)
@@ -344,12 +397,12 @@ export class AIService {
   private async prepareAudioForTranscription(
     filePath: string,
     forceFormat: 'mp3' | null,
-  ): Promise<{ path: string; cleanup: () => void }> {
+  ): Promise<{ path: string, cleanup: () => void }> {
     const ext = path.extname(filePath).toLowerCase()
     const allowedExts = ['.mp3', '.m4a', '.wav', '.mp4', '.mpeg', '.mpga', '.webm']
-    const needsConvert =
-      (forceFormat === 'mp3' && ext !== '.mp3') ||
-      (forceFormat === null && !allowedExts.includes(ext))
+    const needsConvert
+      = (forceFormat === 'mp3' && ext !== '.mp3')
+        || (forceFormat === null && !allowedExts.includes(ext))
 
     if (!needsConvert) {
       return { path: filePath, cleanup: () => {} }
@@ -366,7 +419,8 @@ export class AIService {
       cleanup: () => {
         try {
           fs.unlinkSync(targetPath)
-        } catch {}
+        }
+        catch {}
       },
     }
   }
@@ -380,7 +434,7 @@ export class AIService {
         .format('mp3')
         .output(outputPath)
         .on('end', () => resolve())
-        .on('error', (err) => reject(err))
+        .on('error', err => reject(err))
         .run()
     })
   }
@@ -492,7 +546,7 @@ ${contentToSend}
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: model,
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
@@ -501,7 +555,8 @@ ${contentToSend}
       })
 
       return completion.choices[0]?.message?.content || '未能生成总结。'
-    } catch (error: any) {
+    }
+    catch (error: any) {
       throw new Error(`AI generation failed: ${error.message}`)
     }
   }

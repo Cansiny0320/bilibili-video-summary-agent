@@ -1,10 +1,10 @@
 #!/usr/bin/env node
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import { Command } from 'commander'
 import * as dotenv from 'dotenv'
-import * as path from 'path'
-import * as fs from 'fs'
-import { BilibiliClient } from './bilibili'
 import { AIService } from './ai'
+import { BilibiliClient } from './bilibili'
 
 // 加载环境变量
 dotenv.config()
@@ -91,7 +91,8 @@ program
       if (!options.forceTranscribe) {
         console.log('Fetching subtitles...')
         subtitles = await biliClient.getSubtitles(bvid, videoInfo.cid, videoInfo.aid)
-      } else {
+      }
+      else {
         console.log('Force transcription enabled. Skipping subtitle fetch.')
       }
 
@@ -134,8 +135,10 @@ program
           // 尝试清理空目录
           try {
             fs.rmdirSync(tempDir)
-          } catch {}
-        } catch (err: any) {
+          }
+          catch {}
+        }
+        catch (err: any) {
           console.error(`Audio processing failed: ${err.message}`)
           // 尝试清理
           if (fs.existsSync(tempAudioPath)) fs.unlinkSync(tempAudioPath)
@@ -179,13 +182,15 @@ program
         const success = await biliClient.postComment(videoInfo.aid, commentContent)
         if (success) {
           console.log('✅ Comment posted successfully!')
-        } else {
+        }
+        else {
           console.log(
             '❌ Failed to post comment. Check your BILIBILI_JCT (CSRF token) and SESSDATA.',
           )
         }
       }
-    } catch (error: any) {
+    }
+    catch (error: any) {
       console.error(`Error: ${error.message}`)
       process.exit(1)
     }

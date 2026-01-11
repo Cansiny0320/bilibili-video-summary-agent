@@ -1,41 +1,12 @@
 {
   "name": "bili-summary",
   "version": "1.0.1",
+  "type": "module",
+  "packageManager": "pnpm@10.25.0",
   "description": "CLI tool to summarize Bilibili videos via subtitles or audio transcription using LLMs",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
-  "bin": {
-    "bili-summary": "dist/index.js"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
-  "scripts": {
-    "build": "tsup",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint . --max-warnings 0",
-    "lint:fix": "eslint . --fix --max-warnings 0",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "prepare": "husky",
-    "prepublishOnly": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [
-    "bilibili",
-    "summary",
-    "cli",
-    "subtitle",
-    "transcription",
-    "openai"
-  ],
   "author": "Cansiny0320",
   "license": "MIT",
+  "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Cansiny0320/bilibili-video-summary-agent.git"
@@ -44,31 +15,71 @@
     "url": "https://github.com/Cansiny0320/bilibili-video-summary-agent/issues"
   },
   "homepage": "https://github.com/Cansiny0320/bilibili-video-summary-agent#readme",
+  "keywords": [
+    "bilibili",
+    "summary",
+    "cli",
+    "subtitle",
+    "transcription",
+    "openai"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "bili-summary": "dist/index.mjs"
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsx src/index.ts",
+    "lint": "eslint",
+    "prepublishOnly": "nr build",
+    "release": "bumpp",
+    "start": "node dist/index.mjs",
+    "test": "vitest",
+    "typecheck": "tsc",
+    "prepare": "simple-git-hooks"
+  },
   "devDependencies": {
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/npm": "^13.1.3",
+    "@antfu/eslint-config": "^6.6.1",
+    "@antfu/ni": "^28.0.0",
     "@types/fluent-ffmpeg": "^2.1.28",
     "@types/node": "^25.0.3",
-    "@eslint/js": "^9.39.2",
-    "@typescript-eslint/eslint-plugin": "^8.21.0",
-    "@typescript-eslint/parser": "^8.21.0",
-    "dotenv": "^17.2.3",
-    "eslint": "^9.17.0",
-    "eslint-config-prettier": "^9.1.0",
-    "globals": "^15.14.0",
-    "husky": "^9.1.7",
-    "prettier": "^3.4.2",
-    "semantic-release": "^25.0.2",
-    "ts-node": "^10.9.2",
-    "tsup": "^8.5.1",
-    "typescript": "^5.9.3"
+    "bumpp": "^10.3.2",
+    "eslint": "^9.39.2",
+    "lint-staged": "^16.2.7",
+    "publint": "^0.3.16",
+    "simple-git-hooks": "^2.13.1",
+    "tsdown": "^0.17.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.7",
+    "vitest": "^4.0.15"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm i --frozen-lockfile --ignore-scripts --offline && npx lint-staged"
+  },
+  "lint-staged": {
+    "*": "eslint --fix"
   },
   "dependencies": {
     "@types/uuid": "^11.0.0",
     "@types/ws": "^8.18.1",
     "axios": "^1.13.2",
     "commander": "^14.0.2",
+    "dotenv": "^17.2.3",
     "fluent-ffmpeg": "^2.1.3",
     "openai": "^6.15.0",
     "uuid": "^13.0.0",
