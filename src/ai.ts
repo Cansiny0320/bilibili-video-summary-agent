@@ -53,7 +53,7 @@ export class AIService {
         // 清理临时分片文件
         try {
           fs.unlinkSync(chunk.path)
-        } catch (e) {}
+        } catch {}
       }
 
       return allSubtitles
@@ -328,7 +328,7 @@ export class AIService {
               .setDuration(segmentDuration)
               .output(outputName)
               .on('end', () => res())
-              .on('error', err => rej(err))
+              .on('error', (err) => rej(err))
               .run()
           })
           promises.push(p)
@@ -366,7 +366,7 @@ export class AIService {
       cleanup: () => {
         try {
           fs.unlinkSync(targetPath)
-        } catch (e) {}
+        } catch {}
       },
     }
   }
@@ -380,7 +380,7 @@ export class AIService {
         .format('mp3')
         .output(outputPath)
         .on('end', () => resolve())
-        .on('error', err => reject(err))
+        .on('error', (err) => reject(err))
         .run()
     })
   }
@@ -404,7 +404,7 @@ export class AIService {
     // 每隔一定时间或每隔几句合并一下，避免全是密密麻麻的时间戳
     // 这里简单处理：每一句都带时间戳，让AI自己筛选重要的
     return subtitles
-      .map(item => {
+      .map((item) => {
         return `[${this.formatTime(item.from)}] ${item.content}`
       })
       .join('\n')
