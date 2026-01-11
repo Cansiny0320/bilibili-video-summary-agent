@@ -1,49 +1,40 @@
-import js from '@eslint/js'
-import tsParser from '@typescript-eslint/parser'
-import tsPlugin from '@typescript-eslint/eslint-plugin'
-import prettierConfig from 'eslint-config-prettier'
-import globals from 'globals'
+// @ts-check
+import antfu from '@antfu/eslint-config'
 
-export default [
+export default antfu(
   {
-    ignores: ['dist/**', 'node_modules/**', 'temp_audio/**', 'temp_subtitles/**'],
+    type: 'app',
+    pnpm: true,
+    ignores: [
+      '.github/**',
+      'dist/**',
+      'node_modules/**',
+      'temp_audio/**',
+      'temp_subtitles/**',
+    ],
   },
   {
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      globals: globals.node,
-    },
-  },
-  js.configs.recommended,
-  {
-    files: ['**/*.ts'],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-      },
-    },
-    plugins: {
-      '@typescript-eslint': tsPlugin,
-    },
     rules: {
-      ...tsPlugin.configs.recommended.rules,
+      // CLI project: allow console and process.exit
+      'no-console': 'off',
+      'node/no-process-exit': 'off',
+      'node/prefer-global/process': 'off',
 
-      // 仓库现状：存在合理的动态数据/SDK 响应处理，先不强制消除 any。
-      '@typescript-eslint/no-explicit-any': 'off',
+      // Keep existing code style; avoid large refactors
+      'antfu/if-newline': 'off',
+      'prefer-template': 'off',
 
-      // 与 TS 版本的 unused-vars 规则对齐
-      'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      // Keep existing import/typing patterns
+      'ts/consistent-type-definitions': 'off',
 
-      // 现有代码允许空 catch 用于清理/降噪
-      'no-empty': 'off',
+      // Avoid non-critical regexp and JSON ordering constraints
+      'regexp/no-super-linear-backtracking': 'off',
+      'regexp/strict': 'off',
+      'jsonc/sort-keys': 'off',
+      'jsonc/sort-array-values': 'off',
 
-      // 当前代码中存在少量 require() 用法（例如 crypto.randomUUID），不强制迁移
-      '@typescript-eslint/no-require-imports': 'off',
+      // Tests: don't enforce title casing
+      'test/prefer-lowercase-title': 'off',
     },
   },
-  prettierConfig,
-]
+)
