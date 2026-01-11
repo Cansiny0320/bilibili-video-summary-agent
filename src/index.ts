@@ -16,11 +16,18 @@ program
   .description('Bilibili Video Summary AI Agent')
   .version('1.0.0')
   .argument('<video_id>', 'Bilibili BV ID or URL')
-  .option('-k, --key <key>', 'OpenAI API Key')
+  .option('-k, --key <key>', 'OpenAI API Key (or compatible)')
   .option('-b, --base-url <url>', 'OpenAI Base URL')
-  .option('-m, --model <model>', 'OpenAI Model')
+  .option('-m, --model <model>', 'Chat model for summary generation')
+  .option('--audio-model <model>', 'Audio transcription model')
   .option('-o, --output <file>', 'Save summary to file')
   .option('--comment', 'Post summary as a comment on the video')
+  .option('--sessdata <sessdata>', 'Bilibili SESSDATA cookie value')
+  .option('--jct <jct>', 'Bilibili bili_jct (CSRF token)')
+  .option('--volc-app-key <key>', 'Volcengine App Key (use Volc ASR)')
+  .option('--volc-access-key <key>', 'Volcengine Access Key')
+  .option('--volc-cluster <cluster>', 'Volcengine resource ID/cluster')
+  .option('--volc-api-url <url>', 'Volcengine API URL override')
   .option('--transcribe', 'Enable audio transcription if subtitles are missing')
   .option('--force-transcribe', 'Force audio transcription even if subtitles exist')
   .action(async (videoId, options) => {
@@ -35,6 +42,17 @@ program
       }
 
       const baseURL = options.baseUrl || process.env.OPENAI_BASE_URL
+
+      if (options.sessdata) process.env.BILIBILI_SESSDATA = options.sessdata
+      if (options.jct) process.env.BILIBILI_JCT = options.jct
+
+      if (options.audioModel) process.env.OPENAI_AUDIO_MODEL = options.audioModel
+
+      if (options.volcAppKey) process.env.VOLC_APP_KEY = options.volcAppKey
+      if (options.volcAccessKey) process.env.VOLC_ACCESS_KEY = options.volcAccessKey
+      if (options.volcCluster) process.env.VOLC_CLUSTER = options.volcCluster
+      if (options.volcApiUrl) process.env.VOLC_API_URL = options.volcApiUrl
+
       // 默认模型优先级: 命令行参数 > 环境变量 > 默认值
       const model = options.model || process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini'
 
