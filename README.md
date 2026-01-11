@@ -2,196 +2,192 @@
 
 [![npm](https://img.shields.io/npm/v/bili-summary.svg)](https://www.npmjs.com/package/bili-summary)
 
-这是一个基于 Node.js 和 TypeScript 开发的命令行工具 (CLI)，利用 AI (OpenAI API) 自动总结 Bilibili 视频内容。它能够抓取视频字幕，生成包含关键时间点跳转的摘要，帮助用户快速获取视频核心信息。
+一个命令行工具（CLI）：输入 B 站视频 BV 号或链接，自动获取字幕（或按需转录音频），用 LLM 生成「摘要 + 关键要点（带时间戳）」；可选自动发到评论区。
 
-## ✨ 功能特点
+## 功能
 
-- **自动识别**：支持输入 B 站视频链接或 BV 号 (如 `BV1xx...`)。
-- **智能字幕获取**：自动解析视频 CID，优先获取中文字幕，支持 AI 生成的字幕。
-- **AI 智能总结**：
-  - 生成精炼的视频摘要。
-  - 提取关键章节并附带**时间戳** (如 `[02:30]`)，点击即可跳转 (需配合支持的播放器或仅作参考)。
-  - 自动处理超长字幕，防止 Token 消耗过大。
-- **音频转录**：当视频无字幕时，支持自动下载音频并使用 Whisper 模型进行转录 (需显式开启)。
-- **自动评论**：支持将生成的总结自动发表到视频评论区 (需配置 `BILIBILI_JCT`)。
-- **Cookie 支持**：支持配置 B 站 `SESSDATA` 以访问需要登录才能获取的资源（如某些高画质音频或受限字幕）。
-- **灵活配置**：支持通过命令行参数或 `.env` 文件配置 API Key 和 Base URL。
+- 支持输入 BV 号或视频 URL（含分 P 参数）
+- 自动获取中文字幕（优先 AI 生成中文）
+- 无字幕时可选音频转录（需要 ffmpeg）
+- 生成适合评论区的纯文本总结（含时间戳）
+- 可选自动评论（需要 B 站 Cookie 参数）
+- 配置方式灵活：全部参数都可通过命令行传入（不依赖 `.env`）
 
-## 🚀 快速开始
+## 快速开始（推荐）
 
-### 前置要求
-
-- Node.js (建议 v16+)
-- OpenAI API Key (或兼容 OpenAI 格式的其他 LLM API Key)
-- ffmpeg (使用音频转录/切分时需要)
-
-### 安装
-
-#### 方式一：通过 npm 安装 (推荐)
+### 1) 安装
 
 ```bash
-npm install -g bili-summary
+npm i -g bili-summary
+# 或：npm install -g bili-summary
 ```
 
-安装后直接使用：
+### 2) 直接使用
+
+如果你不想创建 `.env`，直接把 Key 通过命令行传入：
 
 ```bash
-bili-summary BV1uT4y1P7CX
+bili-summary BV1uT4y1P7CX -k sk-xxxx
 ```
 
-也可用 npx 直接运行：
+如果你更习惯用 npx：
 
 ```bash
-npx bili-summary BV1uT4y1P7CX
+npx bili-summary BV1uT4y1P7CX -k sk-xxxx
 ```
 
-#### 方式二：源码安装
+查看完整参数（永远以此为准）：
 
-1. **克隆仓库**
+```bash
+bili-summary --help
+```
 
-   ```bash
-   git clone https://github.com/Cansiny0320/bilibili-video-summary-agent.git
-   cd bilibili-video-summary-agent
-   ```
+## 常见用法
 
-2. **安装依赖**
+### 基本总结
 
-   ```bash
-   pnpm install
-   ```
+```bash
+bili-summary BV1uT4y1P7CX -k sk-xxxx
+```
 
-3. **编译项目**
-   ```bash
-   pnpm build
-   ```
+### 指定模型 / Base URL
 
-### ⚙️ 配置
+```bash
+bili-summary BV1uT4y1P7CX \
+  -k sk-xxxx \
+  -b https://api.openai.com/v1 \
+  -m gpt-4o-mini
+```
 
-你可以创建一个 `.env` 文件来配置默认的环境变量，避免每次输入 API Key：
+### 保存到文件
+
+```bash
+bili-summary BV1uT4y1P7CX -k sk-xxxx -o summary.txt
+```
+
+### 没有字幕时启用音频转录
+
+需要本机安装 `ffmpeg`。
+
+```bash
+bili-summary BV1uT4y1P7CX -k sk-xxxx --transcribe
+```
+
+指定转录模型：
+
+```bash
+bili-summary BV1uT4y1P7CX -k sk-xxxx --transcribe --audio-model doubao-seed-1-6-251015
+```
+
+强制转录（忽略字幕）：
+
+```bash
+bili-summary BV1uT4y1P7CX -k sk-xxxx --force-transcribe
+```
+
+### 自动发评论（不需要写 .env）
+
+```bash
+bili-summary BV1uT4y1P7CX \
+  -k sk-xxxx \
+  --comment \
+  --sessdata "SESSDATA_VALUE" \
+  --jct "BILI_JCT_VALUE"
+```
+
+### 分 P
+
+```bash
+bili-summary "https://www.bilibili.com/video/BV1uT4y1P7CX?p=2" -k sk-xxxx
+```
+
+### 使用火山（Volcengine）语音识别转录
+
+当设置了 `--volc-app-key/--volc-access-key` 时，会优先使用火山语音识别。
+
+```bash
+bili-summary BV1uT4y1P7CX \
+  --transcribe \
+  --volc-app-key "xxx" \
+  --volc-access-key "yyy" \
+  --volc-cluster "volc_auc_common"
+```
+
+## 参数速查（摘要）
+
+> 以 `bili-summary --help` 输出为准。
+
+- `-k, --key <key>`：OpenAI API Key（或兼容服务）
+- `-b, --base-url <url>`：OpenAI Base URL
+- `-m, --model <model>`：用于总结的 Chat 模型
+- `--audio-model <model>`：音频转录模型
+- `-o, --output <file>`：保存结果到文件
+- `--transcribe`：无字幕时转录音频
+- `--force-transcribe`：强制转录（忽略字幕）
+- `--comment`：发布总结到评论区
+- `--sessdata <sessdata>`：B 站 Cookie（SESSDATA 值）
+- `--jct <jct>`：B 站 CSRF（bili_jct）
+- `--volc-app-key <key>` / `--volc-access-key <key>`：火山鉴权
+- `--volc-cluster <cluster>` / `--volc-api-url <url>`：火山资源与地址
+
+## 常见问题
+
+- 提示没有字幕：使用 `--transcribe` 或 `--force-transcribe`。
+- 转录报错/无法切分：确认安装 `ffmpeg`，并且在 PATH 中可用。
+- 评论失败：需要同时提供 `--sessdata` 与 `--jct`（或在环境变量里配置）。
+
+## 配置（可选：使用 .env 作为默认值）
+
+你可以完全不创建 `.env`；但如果你希望避免每次都输入参数，可以使用 `.env`。
+
+`.env` 放置位置：
+
+- 如果你在仓库里运行 `pnpm dev` / `pnpm start`，把 `.env` 放在仓库根目录（与 `package.json` 同级）。
+- 如果你全局安装后在任意目录运行 `bili-summary` / `npx bili-summary`，把 `.env` 放在你执行命令的当前目录（也就是 shell 的工作目录）。
+
+创建示例：
 
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env` 文件：
+常用变量（示例，完整列表见 `.env.example`）：
 
 ```env
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-OPENAI_BASE_URL=https://api.openai.com/v1  # 可选，支持第三方中转地址
-OPENAI_CHAT_MODEL=gpt-4o-mini              # 可选，摘要模型
-OPENAI_AUDIO_MODEL=doubao-seed-1-6-251015  # 可选，音频转录模型
-BILIBILI_SESSDATA=xxxxxxxx  # 可选，B站 Cookie 中的 SESSDATA，用于获取更完整的字幕或高画质音频
-BILIBILI_JCT=xxxxxxxx       # 可选，B站 Cookie 中的 bili_jct (CSRF Token)，仅在使用 --comment 功能时需要
-VOLC_APP_KEY=xxxxxxxx       # 可选，火山引擎 App Key（启用火山语音识别）
-VOLC_ACCESS_KEY=xxxxxxxx    # 可选，火山引擎 Access Key
-VOLC_CLUSTER=volc_auc_common # 可选，火山引擎资源 ID
-VOLC_API_URL=xxxxxxxx       # 可选，自定义火山接口地址
+OPENAI_API_KEY=sk-xxxxxxxx
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_CHAT_MODEL=gpt-4o-mini
+OPENAI_AUDIO_MODEL=doubao-seed-1-6-251015
+
+BILIBILI_SESSDATA=xxxx
+BILIBILI_JCT=yyyy
+
+VOLC_APP_KEY=xxx
+VOLC_ACCESS_KEY=yyy
+VOLC_CLUSTER=volc_auc_common
+VOLC_API_URL=https://openspeech.bytedance.com/api/v1/asr
 ```
 
-## 📖 使用说明
+优先级：命令行参数 > 环境变量（`.env` / 系统环境）> 默认值。
 
-编译完成后，可以直接运行 `dist/index.js`：
+## 开发（仓库贡献者）
 
 ```bash
-# 基本用法 (如果已配置 .env)
-./dist/index.js BV1uT4y1P7CX
+pnpm install
 
-# 通过命令行传入 API Key
-./dist/index.js https://www.bilibili.com/video/BV1uT4y1P7CX -k sk-xxxx
+# 直接跑 TS
+pnpm dev -- BV1uT4y1P7CX -k sk-xxxx
 
-# 保存总结到文件
-./dist/index.js BV1uT4y1P7CX -o summary.md
-
-# 指定模型 (默认 gpt-4o-mini)
-./dist/index.js BV1uT4y1P7CX -m gpt-4
-
-# 开启无字幕视频的音频转录
-./dist/index.js BV1uT4y1P7CX --transcribe
-
-# 强制使用音频转录（忽略字幕）
-./dist/index.js BV1uT4y1P7CX --force-transcribe
-
-# 发布评论到视频（需要 BILIBILI_JCT + SESSDATA）
-./dist/index.js BV1uT4y1P7CX --comment
-
-# 指定分P（示例：P2）
-./dist/index.js https://www.bilibili.com/video/BV1uT4y1P7CX?p=2
-```
-
-### 命令参数
-
-```text
-Usage: bili-summary [options] <video_id>
-
-Arguments:
-  video_id              Bilibili BV ID or URL
-
-Options:
-  -V, --version         output the version number
-  -k, --key <key>       OpenAI API Key
-  -b, --base-url <url>  OpenAI Base URL
-  -m, --model <model>   OpenAI Model (default: gpt-4o-mini)
-  -o, --output <file>   Save summary to file
-  --comment             Post summary as a comment on the video
-  --transcribe          Enable audio transcription if subtitles are missing
-  --force-transcribe    Force audio transcription even if subtitles exist
-  -h, --help            display help for command
-```
-
-## 📦 环境变量说明
-
-```text
-OPENAI_API_KEY        OpenAI API Key（必需，除非使用其他兼容服务）
-OPENAI_BASE_URL       OpenAI Base URL（可选，默认 https://api.openai.com/v1）
-OPENAI_CHAT_MODEL     摘要模型（可选，默认 gpt-4o-mini）
-OPENAI_AUDIO_MODEL    音频转录模型（可选，默认 doubao-seed-1-6-251015）
-BILIBILI_SESSDATA     B站 Cookie，获取更完整字幕/音频（可选）
-BILIBILI_JCT          B站 CSRF Token，发评论必需（可选）
-VOLC_APP_KEY          火山 App Key（可选，启用火山转录）
-VOLC_ACCESS_KEY       火山 Access Key（可选）
-VOLC_CLUSTER          火山资源 ID（可选）
-VOLC_API_URL          火山接口地址（可选）
-```
-
-## ✅ 常见问题
-
-1. **提示没有字幕**
-   - 使用 `--transcribe` 或 `--force-transcribe` 开启音频转录。
-
-2. **音频转录报错或无法切分**
-   - 请确保本机已安装 `ffmpeg` 且在 PATH 中可用。
-
-3. **发布评论失败**
-   - 需要同时配置 `BILIBILI_JCT` 和 `BILIBILI_SESSDATA`。
-
-4. **火山识别失败**
-   - 确认 App Key/Access Key/Cluster 正确，并检查账号是否开通“一句话识别”或“Flash 识别”。
-
-## 🚢 发布流程
-
-```bash
-# 版本变更（示例：patch）
-npm version patch
-
-# 构建并发布
-npm publish --access public
-
-# 生成 GitHub Release
-gh release create vX.Y.Z -t "vX.Y.Z" -n "Release notes"
-```
-
-## 🛠️ 开发
-
-开发需要安装 pnpm：
-
-```bash
-# 运行 TypeScript 源码 (无需编译)
-pnpm dev BV1uT4y1P7CX
-
-# 编译 TS 到 JS
+# 构建后运行
 pnpm build
+pnpm start -- BV1uT4y1P7CX -k sk-xxxx
+
+# 质量检查
+pnpm format:check
+pnpm typecheck
+pnpm lint
 ```
 
-## 📝 License
+## License
 
 MIT
