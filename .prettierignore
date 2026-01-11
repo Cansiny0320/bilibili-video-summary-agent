@@ -1,0 +1,7 @@
+dist
+node_modules
+temp_audio
+temp_subtitles
+pnpm-lock.yaml
+
+# 如果后续添加构建产物/缓存目录，请追加到这里

@@ -48,12 +48,14 @@ npx bili-summary BV1uT4y1P7CX
 #### 方式二：源码安装
 
 1. **克隆仓库**
+
    ```bash
    git clone https://github.com/Cansiny0320/bilibili-video-summary-agent.git
    cd bilibili-video-summary-agent
    ```
 
 2. **安装依赖**
+
    ```bash
    pnpm install
    ```
@@ -72,6 +74,7 @@ cp .env.example .env
 ```
 
 编辑 `.env` 文件：
+
 ```env
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_BASE_URL=https://api.openai.com/v1  # 可选，支持第三方中转地址

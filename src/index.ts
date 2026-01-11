@@ -116,7 +116,7 @@ program
           // 尝试清理空目录
           try {
             fs.rmdirSync(tempDir)
-          } catch (e) {}
+          } catch {}
         } catch (err: any) {
           console.error(`Audio processing failed: ${err.message}`)
           // 尝试清理
@@ -136,7 +136,7 @@ program
       console.log(`Subtitles saved to temporary file: ${tempSubsPath}`)
 
       // 6. 生成总结
-      const summary = await aiService.summarize(videoInfo, subtitles, options.model)
+      const summary = await aiService.summarize(videoInfo, subtitles, model)
 
       // 7. 输出结果
       console.log('\n' + '='.repeat(50))
@@ -154,10 +154,10 @@ program
       // 发送评论
       if (options.comment) {
         console.log('\nPosting summary to comments...')
-        
+
         // 格式化为适合评论区的文本
         const commentContent = aiService.formatSummaryForComment(summary)
-        
+
         const success = await biliClient.postComment(videoInfo.aid, commentContent)
         if (success) {
           console.log('✅ Comment posted successfully!')
