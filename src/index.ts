@@ -3,6 +3,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { Command } from 'commander'
 import * as dotenv from 'dotenv'
+import { version } from '../package.json'
 import { AIService } from './ai'
 import { BilibiliClient } from './bilibili'
 
@@ -14,7 +15,7 @@ const program = new Command()
 program
   .name('bili-summary')
   .description('Bilibili Video Summary AI Agent')
-  .version('1.0.0')
+  .version(version)
   .argument('<video_id>', 'Bilibili BV ID or URL')
   .option('-k, --key <key>', 'OpenAI API Key (or compatible)')
   .option('-b, --base-url <url>', 'OpenAI Base URL')
