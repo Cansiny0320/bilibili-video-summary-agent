@@ -73,17 +73,15 @@ export class BilibiliClient {
   }
 
   /**
-   * 尝试从 HTML 中提取正确的字幕 ID 列表
-   * 这通常比 API 返回的更权威
+   * HTML 的字幕元数据可能始终属于 P1，因此同时返回它实际所属的 CID。
    */
-  async getSubtitleIdsFromHtml(bvid: string): Promise<string[]> {
+  private async getSubtitleMetadataFromHtml(bvid: string, page: number = 1): Promise<{ cid: number, ids: string[] } | null> {
     try {
-      const url = `https://www.bilibili.com/video/${bvid}`
+      const url = `https://www.bilibili.com/video/${bvid}?p=${page}`
       // 模仿浏览器请求
       const response = await this.client.get(url, {
         headers: {
-          Accept:
-            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
         },
       })
       const html = response.data
@@ -91,56 +89,52 @@ export class BilibiliClient {
 
       if (match) {
         const state = JSON.parse(match[1])
-        if (
-          state.videoData
-          && state.videoData.subtitle
-          && Array.isArray(state.videoData.subtitle.list)
-        ) {
-          return state.videoData.subtitle.list.map((s: any) => s.id_str || s.id.toString())
+        if (state.videoData?.bvid === bvid && typeof state.videoData.cid === 'number'
+          && Array.isArray(state.videoData.subtitle?.list)) {
+          return {
+            cid: state.videoData.cid,
+            ids: state.videoData.subtitle.list.map((s: any) => s.id_str || s.id.toString()),
+          }
         }
       }
-      return []
+      return null
     }
-    catch (error) {
-      console.warn('Failed to extract subtitle IDs from HTML, skipping verification.', error)
-      return []
+    catch {
+      console.warn('Failed to extract subtitle IDs from HTML.')
+      return null
     }
   }
 
   /**
    * 获取视频字幕
-   * 优先获取中文 (zh-CN), 其次是 AI 生成的中文, 最后是列表第一个
+   * 校验视频身份及适用的字幕 ID 后，优先获取 AI 中文，其次是中文字幕
    */
-  async getSubtitles(bvid: string, cid: number, aid?: number): Promise<SubtitleItem[]> {
+  async getSubtitles(bvid: string, cid: number, aid?: number, page: number = 1): Promise<SubtitleItem[]> {
     try {
-      // 0. 尝试获取权威的字幕 ID 列表
-      const validIds = await this.getSubtitleIdsFromHtml(bvid)
-      // if (validIds.length > 0) {
-      //     console.log('DEBUG: Valid subtitle IDs from HTML:', validIds);
-      // }
+      const metadata = await this.getSubtitleMetadataFromHtml(bvid, page)
+      if (!metadata || (page === 1 && metadata.cid !== cid)) {
+        console.warn(`Cannot verify subtitle metadata for ${bvid} P${page} (cid=${cid}); refusing unverified subtitles.`)
+        return []
+      }
+      // 多 P 页面仍可能给出 P1 字幕，不能拿 P1 的 ID 拦截其他分 P。
+      // 其他分 P 使用 WBI 播放器响应，并在下方严格校验其视频身份。
+      const validIds = metadata.cid === cid ? metadata.ids : null
+      if (validIds?.length === 0) {
+        console.warn(`No subtitle IDs for ${bvid} P${page} (cid=${cid}). Check whether BILIBILI_SESSDATA has expired.`)
+        return []
+      }
 
-      // 重试机制：最多重试 3 次
       const maxRetries = 3
-      let lastSubtitles: any[] = []
-
       for (let i = 0; i <= maxRetries; i++) {
         if (i > 0) {
-          // console.log(`DEBUG: Retry attempt ${i}/${maxRetries}...`);
-          // 简单的延迟
           await new Promise(resolve => setTimeout(resolve, 500))
         }
 
-        // 构造更稳健的 URL: 包含 aid 和 时间戳以避免缓存问题
-        let url = `https://api.bilibili.com/x/player/v2?cid=${cid}&bvid=${bvid}`
-        if (aid) {
+        let url = `https://api.bilibili.com/x/player/wbi/v2?cid=${cid}&bvid=${bvid}`
+        if (aid !== undefined) {
           url += `&aid=${aid}`
         }
-        // 添加时间戳防止缓存 (每次重试都用新的时间戳)
-        url += `&_=${Date.now()}`
-        // 添加随机数
-        url += `&r=${Math.random()}`
-
-        // console.log('DEBUG: Player API URL:', url);
+        url += `&_=${Date.now()}&r=${Math.random()}`
         const response = await this.client.get(url)
         const data = response.data
 
@@ -149,54 +143,31 @@ export class BilibiliClient {
           continue
         }
 
-        const subtitles = data.data.subtitle?.subtitles
-        if (!subtitles || subtitles.length === 0) {
-          // console.log('DEBUG: No subtitles found in API response.');
+        // 旧 player/v2 曾返回标识正确但字幕错配的数据，使用浏览器当前的 WBI 接口。
+        const playerData = data.data
+        if (playerData?.bvid !== bvid || playerData?.cid !== cid
+          || (aid !== undefined && playerData?.aid !== aid)) {
+          console.warn(`Player identity mismatch for ${bvid} P${page} (cid=${cid}); retrying.`)
           continue
         }
 
-        lastSubtitles = subtitles
-
-        // 如果有权威 ID，进行校验
-        if (validIds.length > 0) {
-          // 1. 检查 ID 匹配
-          // 2. 检查 subtitle_url 非空
-          const filtered = subtitles.filter((s: any) => {
-            const idMatch = validIds.includes(s.id_str || s.id?.toString())
-            const hasUrl = s.subtitle_url && s.subtitle_url.length > 0
-            return idMatch && hasUrl
-          })
-
-          if (filtered.length > 0) {
-            // console.log('DEBUG: API subtitles match HTML IDs and have valid URLs. Success.');
-            return this.selectBestSubtitle(filtered)
-          }
-          else {
-            // 有匹配 ID 但没有 URL，或者完全不匹配
-            const hasIdMatch = subtitles.some((s: any) =>
-              validIds.includes(s.id_str || s.id?.toString()),
-            )
-            if (hasIdMatch) {
-              // console.warn(`DEBUG: API subtitles match HTML IDs but URL is empty (Attempt ${i + 1}). Retrying...`);
-            }
-            else {
-              // console.warn(`DEBUG: API subtitles mismatch (Attempt ${i + 1}). Expected one of ${JSON.stringify(validIds)}, got ${JSON.stringify(subtitles.map((s: any) => s.id_str || s.id))}`);
-            }
-          }
+        const subtitles = playerData.subtitle?.subtitles
+        if (!subtitles || subtitles.length === 0) {
+          continue
         }
-        else {
-          // 没有权威 ID，但也要检查 URL 非空
-          if (subtitles.some((s: any) => s.subtitle_url && s.subtitle_url.length > 0)) {
-            return this.selectBestSubtitle(subtitles)
-          }
-          else {
-            // console.warn(`DEBUG: No valid subtitle URLs in API response (Attempt ${i + 1}). Retrying...`);
-          }
+
+        const verified = subtitles.filter((s: any) =>
+          (validIds === null || validIds.includes(s.id_str || s.id?.toString()))
+          && typeof s.subtitle_url === 'string' && s.subtitle_url.trim().length > 0,
+        )
+        if (verified.length > 0) {
+          return await this.selectBestSubtitle(verified)
         }
+        console.warn(`No matching subtitle IDs with usable URLs for ${bvid} P${page} (cid=${cid}); retrying.`)
       }
 
-      // console.warn('DEBUG: Failed to get matching subtitles after retries. Fallback to last fetched data.');
-      return this.selectBestSubtitle(lastSubtitles)
+      console.warn(`No verified subtitles for ${bvid} P${page} (cid=${cid}) after retries.`)
+      return []
     }
     catch (error: any) {
       console.error(`Error fetching subtitles list: ${error.message}`)
@@ -221,7 +192,7 @@ export class BilibiliClient {
     )
 
     // 策略: 找 ai-zh -> 找 zh-CN -> 找包含 "zh" 的 -> 第一个
-    // 修正: 优先选择 ai-zh (AI 生成的中文)，因为通常更稳定且包含正确的 ai_subtitle 路径
+    // 语言和路径仅用于已校验字幕的排序，不能证明字幕属于目标视频。
 
     // 1. 筛选语言候选列表
     let candidates = subtitles.filter((s: any) => s.lan === 'ai-zh')

@@ -90,7 +90,7 @@ program
 
       if (!options.forceTranscribe) {
         console.log('Fetching subtitles...')
-        subtitles = await biliClient.getSubtitles(bvid, videoInfo.cid, videoInfo.aid)
+        subtitles = await biliClient.getSubtitles(bvid, videoInfo.cid, videoInfo.aid, videoInfo.currentPage)
       }
       else {
         console.log('Force transcription enabled. Skipping subtitle fetch.')

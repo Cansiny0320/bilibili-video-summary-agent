@@ -132,6 +132,9 @@ bili-summary BV1uT4y1P7CX \
 
 ## 常见问题
 
+- 字幕使用 WBI 播放器接口，并校验视频/分 P 标识；页面字幕元数据属于当前 CID 时，还会核对字幕 ID。不匹配或页面元数据不可用时会拒绝使用。多 P 页面的元数据可能仍属于 P1，此时其他分 P 以 WBI 响应的身份校验为准。
+- `BILIBILI_SESSDATA` 失效可能导致获取不到字幕；请更新本地 `.env` 中的登录 Cookie 后重试。
+
 - 提示没有字幕：使用 `--transcribe` 或 `--force-transcribe`。
 - 转录报错/无法切分：确认安装 `ffmpeg`，并且在 PATH 中可用。
 - 评论失败：需要同时提供 `--sessdata` 与 `--jct`（或在环境变量里配置）。
