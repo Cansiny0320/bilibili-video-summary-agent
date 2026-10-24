@@ -191,6 +191,14 @@ pnpm typecheck
 pnpm lint
 ```
 
+## 赞助
+
+如果这个项目对你有帮助，欢迎通过微信或支付宝支持后续开发。感谢你的支持！
+
+![微信与支付宝赞助二维码](.github/sponsorship/sponsorship-cats.png)
+
+[猫猫](.github/sponsorship/sponsorship-cats.png) · [一二布布](.github/sponsorship/sponsorship-yier-bubu.png) · [水豚噜噜](.github/sponsorship/sponsorship-lulu.png)
+
 ## License
 
 MIT
